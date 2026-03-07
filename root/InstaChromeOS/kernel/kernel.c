@@ -167,14 +167,15 @@ void start_shell(void) {
     char command[256];
     char current_dir[256] = "/";
     int cmd_index = 0;
+    char edit_buffer[4096];  /* Buffer for file editing */
     
     while(1) {
-        char c = keyboard_getchar();
+        int c = keyboard_getchar();  /* Changed to int to handle special keys */
         
         if(c == '\n') {
             command[cmd_index] = '\0';
             
-            /* Print a newline before command output to move it one line down */
+            /* Print a newline before command output */
             screen_write("\n");
             
             if(strcmp(command, "dir") == 0) {
@@ -199,6 +200,107 @@ void start_shell(void) {
             else if(strcmp(command, "clear") == 0) {
                 screen_clear();
             }
+            /* Run command - view file content (read-only) */
+            else if(strncmp(command, "run -v ", 7) == 0) {
+                char* filename = command + 7;
+                fs_display_file(filename);
+            }
+            /* Load command - edit file content with F2 save */
+            else if(strncmp(command, "load -s ", 8) == 0) {
+                char* filename = command + 8;
+                
+                /* Try to load existing content */
+                char existing_content[4096] = {0};
+                int bytes_read = fs_read_file(filename, existing_content, 4096);
+                
+                screen_write("Editing file: ");
+                screen_write(filename);
+                screen_write("\n");
+                if(bytes_read > 0) {
+                    screen_write("Current content:\n");
+                    screen_write("------------------------------------------------\n");
+                    screen_write(existing_content);
+                    if(existing_content[0] != '\0' && existing_content[bytes_read-1] != '\n') {
+                        screen_write("\n");
+                    }
+                    screen_write("------------------------------------------------\n");
+                }
+                screen_write("Enter new content (F2 to save, ESC to cancel):\n");
+                
+                /* Simple line-based editor */
+                int edit_index = 0;
+                int editing = 1;
+                char edit_buffer[4096] = {0};
+                int cursor_x = 0;
+                
+                /* Pre-fill with existing content if any */
+                if(bytes_read > 0) {
+                    for(int i = 0; i < bytes_read; i++) {
+                        edit_buffer[edit_index++] = existing_content[i];
+                    }
+                    /* Show existing content */
+                    screen_write(existing_content);
+                    if(existing_content[bytes_read-1] != '\n') {
+                        screen_write("\n");
+                    }
+                }
+                
+                screen_write("> ");
+                
+                while(editing) {
+                    int key = keyboard_getchar();
+                    
+                    if(key == KEY_ESC) {  /* ESC - cancel */
+                        screen_write("\n------------------------------------------------\n");
+                        screen_write("Edit cancelled.\n");
+                        editing = 0;
+                    }
+                    else if(key == KEY_F2) {  /* F2 - save */
+                        edit_buffer[edit_index] = '\0';
+                        
+                        if(fs_write_file(filename, edit_buffer) == 0) {
+                            screen_write("\n------------------------------------------------\n");
+                            screen_write("File saved successfully (");
+                            char num_buf[16];
+                            int_to_str(edit_index, num_buf);
+                            screen_write(num_buf);
+                            screen_write(" bytes).\n");
+                        } else {
+                            screen_write("\n------------------------------------------------\n");
+                            screen_write("Error saving file.\n");
+                        }
+                        editing = 0;
+                    }
+                    else if(key == KEY_ENTER) {
+                        if(edit_index < 4095) {
+                            edit_buffer[edit_index++] = '\n';
+                        }
+                        screen_write("\n> ");
+                        cursor_x = 0;
+                    }
+                    else if(key == KEY_BACKSPACE) {
+                        if(edit_index > 0) {
+                            edit_index--;
+                            /* Simple backspace - move cursor back and overwrite with space */
+                            if(cursor_x > 0) {
+                                cursor_x--;
+                                screen_write("\b \b");
+                            } else {
+                                /* At start of line - need to handle going to previous line */
+                                screen_write("\b \b");
+                            }
+                        }
+                    }
+                    else if(key >= 32 && key <= 126) {  /* Printable characters */
+                        if(edit_index < 4095) {
+                            edit_buffer[edit_index++] = key;
+                            cursor_x++;
+                            char str[2] = {key, '\0'};
+                            screen_write(str);
+                        }
+                    }
+                }
+            }
             /* Keyboard layout switching command */
             else if(strncmp(command, "KeySifh ", 8) == 0) {
                 char* layout_cmd = command + 8;
@@ -206,7 +308,7 @@ void start_shell(void) {
                 if(strcmp(layout_cmd, "sv") == 0) {
                     keyboard_set_layout(LAYOUT_SWEDISH);
                     screen_write("Keyboard layout switched to Swedish\n");
-                    screen_write("Now you can type å, ä, ö!\n");
+                    screen_write("Now you can type å, ä, ö! ([ = å, ; = ö, ' = ä)\n");
                 }
                 else if(strcmp(layout_cmd, "us eng") == 0) {
                     keyboard_set_layout(LAYOUT_US_ENGLISH);
@@ -215,7 +317,7 @@ void start_shell(void) {
                 else {
                     screen_write("Usage: KeySifh <layout>\n");
                     screen_write("Available layouts: sv, us eng\n");
-                    screen_write("  sv     - Swedish layout (å, ä, ö)\n");
+                    screen_write("  sv     - Swedish layout (å = [, ä = ', ö = ;)\n");
                     screen_write("  us eng - US English layout\n");
                 }
             }
@@ -226,15 +328,18 @@ void start_shell(void) {
                 screen_write("  cd <dir>         - Change directory\n");
                 screen_write("  tayn <file>      - Create new file\n");
                 screen_write("  mkdir <dir>      - Create new directory\n");
+                screen_write("  run -v <file>    - View file content (read-only)\n");
+                screen_write("  load -s <file>   - Edit file content (F2 to save, ESC to cancel)\n");
                 screen_write("  printf * <text>  - Print text\n");
                 screen_write("  clear            - Clear screen\n");
                 screen_write("  KeySifh <layout> - Switch keyboard layout\n");
-                screen_write("                     sv = Swedish, us eng = US English\n");
                 screen_write("  help             - Show this help\n");
                 screen_write("\n");
                 screen_write("Current layout: ");
                 screen_write(keyboard_get_layout_name());
-                screen_write("\n\n");
+                screen_write("\n");
+                screen_write("Editor: F2 to save, ESC to cancel\n");
+                screen_write("\n");
             }
             else if(cmd_index > 0) {
                 screen_write("Command not found. Type 'help' for available commands.\n");
@@ -246,14 +351,15 @@ void start_shell(void) {
             screen_write("> ");
             cmd_index = 0;
         }
-        else if(c == '\b' && cmd_index > 0) {
+        else if(c == KEY_BACKSPACE && cmd_index > 0) {
             cmd_index--;
             screen_write("\b \b");
         }
-        else if(c >= ' ' && c <= '~' && cmd_index < 255) {
+        else if(c >= 32 && c <= 126 && cmd_index < 255) {  /* Printable characters only */
             command[cmd_index++] = c;
             char str[2] = {c, '\0'};
             screen_write(str);
         }
+        /* Ignore other special keys (F1-F12, arrows, etc) in command line */
     }
 }

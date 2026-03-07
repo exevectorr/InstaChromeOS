@@ -24,6 +24,7 @@ static fs_node_t* create_node(const char* name, int is_dir, fs_node_t* parent) {
     node->is_directory = is_dir;
     node->parent = parent;
     node->child_count = 0;
+    node->content_size = 0;
     
     /* Initialize content for files */
     if(!is_dir) {
@@ -111,7 +112,7 @@ void fs_print_tree(void) {
     }
     
     if(system) {
-        screen_write("+                      +---------system/\n");
+        screen_write("+             +---------system/\n");
         
         /* Print int_handler */
         fs_node_t* int_handler = NULL;
@@ -123,11 +124,11 @@ void fs_print_tree(void) {
         }
         
         if(int_handler) {
-            screen_write("+                      +                     +----int_handler/\n");
+            screen_write("+             +            +----int_handler/\n");
             
             /* Print int_handler contents */
             for(int i = 0; i < int_handler->child_count; i++) {
-                screen_write("+                      +                     +                 +----");
+                screen_write("+             +            +        +----");
                 screen_write(int_handler->children[i]->name);
                 screen_write("\n");
             }
@@ -138,17 +139,17 @@ void fs_print_tree(void) {
             fs_node_t* node = system->children[i];
             if(!node->is_directory) {
                 if(strcmp(node->name, "OSsys.os") == 0) {
-                    screen_write("+                      +                     +---- OSsys.os\n");
+                    screen_write("+             +            +---- OSsys.os\n");
                 }
                 else if(strcmp(node->name, "Linker.hmk") == 0) {
-                    screen_write("+                      +                     +---- Linker.hmk\n");
+                    screen_write("+             +            +---- Linker.hmk\n");
                 }
                 else if(strcmp(node->name, "instachrome.jl") == 0) {
-                    screen_write("+                      +                     +---- instachrome.jl\n");
+                    screen_write("+             +            +---- instachrome.jl\n");
                 }
                 else {
                     /* New files in system directory */
-                    screen_write("+                      +                     +---- ");
+                    screen_write("+             +            +---- ");
                     screen_write(node->name);
                     screen_write("\n");
                 }
@@ -166,11 +167,11 @@ void fs_print_tree(void) {
     }
     
     if(personal) {
-        screen_write("+                      +------ personal/\n");
+        screen_write("+             +------ personal/\n");
         
         /* Show files in personal */
         for(int i = 0; i < personal->child_count; i++) {
-            screen_write("+                      |             +---- ");
+            screen_write("+                  |    +---- ");
             screen_write(personal->children[i]->name);
             if(personal->children[i]->is_directory) {
                 screen_write("/");
@@ -189,11 +190,11 @@ void fs_print_tree(void) {
     }
     
     if(space) {
-        screen_write("+                      +------ space/\n");
+        screen_write("+             +------ space/\n");
         
         /* Show files in space */
         for(int i = 0; i < space->child_count; i++) {
-            screen_write("+                      |             +---- ");
+            screen_write("+             +    +---- ");
             screen_write(space->children[i]->name);
             if(space->children[i]->is_directory) {
                 screen_write("/");
@@ -212,11 +213,11 @@ void fs_print_tree(void) {
     }
     
     if(tmp) {
-        screen_write("+                      +------ tmp/\n");
+        screen_write("+             +------ tmp/\n");
         
         /* Show files in tmp */
         for(int i = 0; i < tmp->child_count; i++) {
-            screen_write("+                      |             +---- ");
+            screen_write("+                  |    +---- ");
             screen_write(tmp->children[i]->name);
             if(tmp->children[i]->is_directory) {
                 screen_write("/");
@@ -234,13 +235,13 @@ void fs_print_tree(void) {
            strcmp(node->name, "space") != 0 &&
            strcmp(node->name, "tmp") != 0) {
             
-            screen_write("+                      +------ ");
+            screen_write("+             +------ ");
             screen_write(node->name);
             screen_write("/\n");
             
             /* Show contents of new directory */
             for(int j = 0; j < node->child_count; j++) {
-                screen_write("+                      |             +---- ");
+                screen_write("+             +    +---- ");
                 screen_write(node->children[j]->name);
                 if(node->children[j]->is_directory) {
                     screen_write("/");
@@ -271,6 +272,11 @@ void fs_list_current(void) {
         } else {
             screen_write("[FILE] ");
             screen_write(child->name);
+            if(child->content_size > 0) {
+                screen_write(" (");
+                int_to_str(child->content_size, (char*)child->content);  /* Reuse buffer temporarily */
+                screen_write(" bytes)");
+            }
             screen_write("\n");
         }
     }
@@ -514,4 +520,81 @@ fs_node_t* fs_find(const char* path) {
     }
     
     return NULL;
+}
+
+/* Write content to a file */
+int fs_write_file(const char* path, const char* content) {
+    fs_node_t* file = fs_find(path);
+    
+    if(!file || file->is_directory) {
+        return -1;  /* File not found or is a directory */
+    }
+    
+    /* Copy content (limit to 4095 bytes) */
+    int i;
+    for(i = 0; content[i] && i < 4095; i++) {
+        file->content[i] = content[i];
+    }
+    file->content[i] = '\0';
+    file->content_size = i;
+    
+    return 0;  /* Success */
+}
+
+/* Read content from a file */
+int fs_read_file(const char* path, char* buffer, uint32_t size) {
+    fs_node_t* file = fs_find(path);
+    
+    if(!file || file->is_directory) {
+        return -1;  /* File not found or is a directory */
+    }
+    
+    uint32_t i;
+    for(i = 0; i < file->content_size && i < size - 1; i++) {
+        buffer[i] = file->content[i];
+    }
+    buffer[i] = '\0';
+    
+    return i;  /* Return number of bytes read */
+}
+
+/* Edit file content (replace existing) */
+int fs_edit_file(const char* path, const char* new_content) {
+    return fs_write_file(path, new_content);  /* Same as write for now */
+}
+
+/* Display file content */
+void fs_display_file(const char* path) {
+    fs_node_t* file = fs_find(path);
+    char buffer[64];
+    
+    if(!file) {
+        screen_write("File not found: ");
+        screen_write(path);
+        screen_write("\n");
+        return;
+    }
+    
+    if(file->is_directory) {
+        screen_write("Cannot display directory: ");
+        screen_write(path);
+        screen_write("\n");
+        return;
+    }
+    
+    screen_write("\n--- Content of ");
+    screen_write(path);
+    screen_write(" (");
+    int_to_str(file->content_size, buffer);
+    screen_write(buffer);
+    screen_write(" bytes) ---\n");
+    
+    if(file->content_size == 0) {
+        screen_write("[File is empty]\n");
+    } else {
+        screen_write(file->content);
+        screen_write("\n");
+    }
+    
+    screen_write("--- End of file ---\n");
 }

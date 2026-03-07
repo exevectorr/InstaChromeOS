@@ -5,10 +5,13 @@
 
 /* Key state tracking */
 static uint8_t key_states[128] = {0};
+static int extended_scancode = 0;
 
 /* Special key states */
 static int shift_pressed = 0;
 static int caps_lock_on = 0;
+static int ctrl_pressed = 0;
+static int alt_pressed = 0;
 static keyboard_layout_t current_layout = LAYOUT_US_ENGLISH;
 
 /* US English Keyboard layout (QWERTY) */
@@ -57,6 +60,9 @@ static int keyboard_has_data(void) {
 void init_keyboard(void) {
     shift_pressed = 0;
     caps_lock_on = 0;
+    ctrl_pressed = 0;
+    alt_pressed = 0;
+    extended_scancode = 0;
     current_layout = LAYOUT_US_ENGLISH;
     
     /* Clear key states */
@@ -87,10 +93,17 @@ const char* keyboard_get_layout_name(void) {
     }
 }
 
-/* Get character from keyboard with layout support */
-char keyboard_getchar(void) {
+/* Check if a specific key is pressed */
+int keyboard_is_key_pressed(uint8_t scancode) {
+    if(scancode < 128) {
+        return key_states[scancode];
+    }
+    return 0;
+}
+
+/* Get character from keyboard with F-key support */
+int keyboard_getchar(void) {
     uint8_t scancode;
-    char c = 0;
     
     while(1) {
         /* Wait for data */
@@ -98,6 +111,12 @@ char keyboard_getchar(void) {
         
         /* Read scancode */
         scancode = inb(0x60);
+        
+        /* Check for extended scancode (0xE0 prefix) */
+        if(scancode == 0xE0) {
+            extended_scancode = 1;
+            continue;
+        }
         
         /* Update key state */
         if(scancode < 128) {
@@ -107,25 +126,53 @@ char keyboard_getchar(void) {
         /* Handle special keys */
         switch(scancode) {
             /* Left Shift press/release */
-            case 0x2A: shift_pressed = 1; continue;
-            case 0xAA: shift_pressed = 0; continue;
+            case 0x2A: shift_pressed = 1; extended_scancode = 0; continue;
+            case 0xAA: shift_pressed = 0; extended_scancode = 0; continue;
             
             /* Right Shift press/release */
-            case 0x36: shift_pressed = 1; continue;
-            case 0xB6: shift_pressed = 0; continue;
+            case 0x36: shift_pressed = 1; extended_scancode = 0; continue;
+            case 0xB6: shift_pressed = 0; extended_scancode = 0; continue;
+            
+            /* Ctrl keys */
+            case 0x1D: ctrl_pressed = 1; extended_scancode = 0; continue;
+            case 0x9D: ctrl_pressed = 0; extended_scancode = 0; continue;
+            
+            /* Alt keys */
+            case 0x38: alt_pressed = 1; extended_scancode = 0; continue;
+            case 0xB8: alt_pressed = 0; extended_scancode = 0; continue;
             
             /* Caps Lock press (toggle) */
             case 0x3A: 
                 caps_lock_on = !caps_lock_on;
+                extended_scancode = 0;
                 continue;
         }
         
-        /* Only handle key presses (not releases) */
-        if(!(scancode & 0x80) && scancode < 58) {  /* Only first 58 scancodes are valid */
+        /* Handle F-keys (they have scancodes 0x3B-0x44 and 0x57-0x58) */
+        if(!(scancode & 0x80)) {  /* Key press only */
+            switch(scancode) {
+                case 0x3B: extended_scancode = 0; return KEY_F1;
+                case 0x3C: extended_scancode = 0; return KEY_F2;
+                case 0x3D: extended_scancode = 0; return KEY_F3;
+                case 0x3E: extended_scancode = 0; return KEY_F4;
+                case 0x3F: extended_scancode = 0; return KEY_F5;
+                case 0x40: extended_scancode = 0; return KEY_F6;
+                case 0x41: extended_scancode = 0; return KEY_F7;
+                case 0x42: extended_scancode = 0; return KEY_F8;
+                case 0x43: extended_scancode = 0; return KEY_F9;
+                case 0x44: extended_scancode = 0; return KEY_F10;
+                case 0x57: extended_scancode = 0; return KEY_F11;
+                case 0x58: extended_scancode = 0; return KEY_F12;
+            }
+        }
+        
+        /* Only handle key presses (not releases) for regular keys */
+        if(!(scancode & 0x80) && scancode < 58) {
             /* Determine if we should use uppercase */
             int use_upper = (shift_pressed && !caps_lock_on) || (!shift_pressed && caps_lock_on);
             
             /* Get character based on current layout */
+            char c = 0;
             if(current_layout == LAYOUT_US_ENGLISH) {
                 if(use_upper) {
                     c = keyboard_map_us_upper[scancode];
@@ -141,9 +188,12 @@ char keyboard_getchar(void) {
             }
             
             if(c) {
+                extended_scancode = 0;
                 return c;
             }
         }
+        
+        extended_scancode = 0;
     }
 }
 
