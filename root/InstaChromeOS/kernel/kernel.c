@@ -69,7 +69,7 @@ void display_memory_info(void) {
     screen_write("========================================\n");
     
     /* Wait 3 seconds (simple delay loop) */
-    for(volatile int i = 0; i < 300000000; i++);
+    for(volatile int i = 0; i < 1500000000; i++);
 }
 
 /* Display welcome screen */
