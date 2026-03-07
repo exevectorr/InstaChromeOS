@@ -12,7 +12,7 @@ typedef struct {
 } memory_info_t;
 
 /* Function declarations */
-void kernel_main(uint32_t magic, uint32_t addr);  // Match the implementation
+void kernel_main(uint32_t magic, uint32_t addr);
 void init_memory(void);
 void init_screen(void);
 void init_keyboard(void);
@@ -20,5 +20,6 @@ void init_fs(void);
 void display_memory_info(void);
 void display_welcome(void);
 void start_shell(void);
+void int_to_hex(uint32_t num, char* str);
 
 #endif

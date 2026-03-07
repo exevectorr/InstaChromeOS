@@ -1,4 +1,4 @@
-# Kernel Makefile
+# Kernel Makefile for InstaChromeOS
 
 CC = i686-elf-gcc
 AS = i686-elf-as
@@ -13,7 +13,8 @@ C_SOURCES = kernel.c \
             drivers/keyboard.c \
             mm/pmm.c \
             fs/fat32.c \
-            lib/string.c
+            lib/string.c \
+            bios/bios.c
 
 ASM_SOURCES = boot/boot.s
 
@@ -42,3 +43,9 @@ kernel.elf: $(OBJECTS)
 # Clean
 clean:
 	rm -f $(OBJECTS) kernel.elf
+
+# Show file sizes
+size: kernel.elf
+	$(CC) -print-multi-lib
+	@echo "Kernel size:"
+	@stat -c %s kernel.elf 2>/dev/null || echo "Kernel not built"

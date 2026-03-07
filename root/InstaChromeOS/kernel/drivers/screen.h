@@ -31,5 +31,6 @@ void screen_write_char(char c);
 void screen_set_color(uint8_t fg, uint8_t bg);
 void screen_set_cursor(int x, int y);
 void int_to_str(int num, char* str);
+void int_to_hex(uint32_t num, char* str);  /* Add this */
 
 #endif
