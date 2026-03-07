@@ -2,7 +2,7 @@
 #include "../drivers/screen.h"
 #include "../lib/string.h"
 #include "../mm/pmm.h"
-#include <stddef.h>  /* For NULL */
+#include <stddef.h>
 
 static fs_node_t* root = NULL;
 static fs_node_t* current_dir = NULL;
@@ -80,20 +80,176 @@ void init_fs(void) {
     instachrome->children[instachrome->child_count++] = tmp;
 }
 
-/* Print filesystem tree */
+/* Print the entire filesystem tree in the original format */
 void fs_print_tree(void) {
+    if(!root) return;
+    
     screen_write("\n");
     screen_write("Root/\n");
+    
+    /* Find InstaChromeOS directory */
+    fs_node_t* instachrome = NULL;
+    for(int i = 0; i < root->child_count; i++) {
+        if(strcmp(root->children[i]->name, "InstaChromeOS") == 0) {
+            instachrome = root->children[i];
+            break;
+        }
+    }
+    
+    if(!instachrome) return;
+    
+    /* Print InstaChromeOS */
     screen_write("+-------InstaChromeOS\n");
-    screen_write("+              +---------system/\n");
-    screen_write("+              +            +----int_handler/\n");
-    screen_write("+              +            +          +----int.ih\n");
-    screen_write("+              +            +---- OSsys.os\n");
-    screen_write("+              +            +---- Linker.hmk\n");
-    screen_write("+              +            +---- instachrome.jl\n");
-    screen_write("+              +------ personal/\n");
-    screen_write("+              +------ space/\n");
-    screen_write("+              +------ tmp/\n");
+    
+    /* Print system directory */
+    fs_node_t* system = NULL;
+    for(int i = 0; i < instachrome->child_count; i++) {
+        if(strcmp(instachrome->children[i]->name, "system") == 0) {
+            system = instachrome->children[i];
+            break;
+        }
+    }
+    
+    if(system) {
+        screen_write("+                      +---------system/\n");
+        
+        /* Print int_handler */
+        fs_node_t* int_handler = NULL;
+        for(int i = 0; i < system->child_count; i++) {
+            if(strcmp(system->children[i]->name, "int_handler") == 0) {
+                int_handler = system->children[i];
+                break;
+            }
+        }
+        
+        if(int_handler) {
+            screen_write("+                      +                     +----int_handler/\n");
+            
+            /* Print int_handler contents */
+            for(int i = 0; i < int_handler->child_count; i++) {
+                screen_write("+                      +                     +                 +----");
+                screen_write(int_handler->children[i]->name);
+                screen_write("\n");
+            }
+        }
+        
+        /* Print other system files */
+        for(int i = 0; i < system->child_count; i++) {
+            fs_node_t* node = system->children[i];
+            if(!node->is_directory) {
+                if(strcmp(node->name, "OSsys.os") == 0) {
+                    screen_write("+                      +                     +---- OSsys.os\n");
+                }
+                else if(strcmp(node->name, "Linker.hmk") == 0) {
+                    screen_write("+                      +                     +---- Linker.hmk\n");
+                }
+                else if(strcmp(node->name, "instachrome.jl") == 0) {
+                    screen_write("+                      +                     +---- instachrome.jl\n");
+                }
+                else {
+                    /* New files in system directory */
+                    screen_write("+                      +                     +---- ");
+                    screen_write(node->name);
+                    screen_write("\n");
+                }
+            }
+        }
+    }
+    
+    /* Print personal directory and its contents */
+    fs_node_t* personal = NULL;
+    for(int i = 0; i < instachrome->child_count; i++) {
+        if(strcmp(instachrome->children[i]->name, "personal") == 0) {
+            personal = instachrome->children[i];
+            break;
+        }
+    }
+    
+    if(personal) {
+        screen_write("+                      +------ personal/\n");
+        
+        /* Show files in personal */
+        for(int i = 0; i < personal->child_count; i++) {
+            screen_write("+                      |             +---- ");
+            screen_write(personal->children[i]->name);
+            if(personal->children[i]->is_directory) {
+                screen_write("/");
+            }
+            screen_write("\n");
+        }
+    }
+    
+    /* Print space directory and its contents */
+    fs_node_t* space = NULL;
+    for(int i = 0; i < instachrome->child_count; i++) {
+        if(strcmp(instachrome->children[i]->name, "space") == 0) {
+            space = instachrome->children[i];
+            break;
+        }
+    }
+    
+    if(space) {
+        screen_write("+                      +------ space/\n");
+        
+        /* Show files in space */
+        for(int i = 0; i < space->child_count; i++) {
+            screen_write("+                      |             +---- ");
+            screen_write(space->children[i]->name);
+            if(space->children[i]->is_directory) {
+                screen_write("/");
+            }
+            screen_write("\n");
+        }
+    }
+    
+    /* Print tmp directory and its contents */
+    fs_node_t* tmp = NULL;
+    for(int i = 0; i < instachrome->child_count; i++) {
+        if(strcmp(instachrome->children[i]->name, "tmp") == 0) {
+            tmp = instachrome->children[i];
+            break;
+        }
+    }
+    
+    if(tmp) {
+        screen_write("+                      +------ tmp/\n");
+        
+        /* Show files in tmp */
+        for(int i = 0; i < tmp->child_count; i++) {
+            screen_write("+                      |             +---- ");
+            screen_write(tmp->children[i]->name);
+            if(tmp->children[i]->is_directory) {
+                screen_write("/");
+            }
+            screen_write("\n");
+        }
+    }
+    
+    /* Check for any new directories directly under InstaChromeOS */
+    for(int i = 0; i < instachrome->child_count; i++) {
+        fs_node_t* node = instachrome->children[i];
+        if(node->is_directory && 
+           strcmp(node->name, "system") != 0 &&
+           strcmp(node->name, "personal") != 0 &&
+           strcmp(node->name, "space") != 0 &&
+           strcmp(node->name, "tmp") != 0) {
+            
+            screen_write("+                      +------ ");
+            screen_write(node->name);
+            screen_write("/\n");
+            
+            /* Show contents of new directory */
+            for(int j = 0; j < node->child_count; j++) {
+                screen_write("+                      |             +---- ");
+                screen_write(node->children[j]->name);
+                if(node->children[j]->is_directory) {
+                    screen_write("/");
+                }
+                screen_write("\n");
+            }
+        }
+    }
+    
     screen_write("\n");
 }
 
@@ -137,6 +293,71 @@ void fs_change_dir(const char* path) {
         return;
     }
     
+    /* Handle absolute paths (starting with /) */
+    if(path[0] == '/') {
+        fs_node_t* target = root;
+        const char* p = path + 1;
+        char component[256];
+        int comp_idx = 0;
+        
+        while(*p) {
+            if(*p == '/') {
+                component[comp_idx] = '\0';
+                
+                /* Find component in current target */
+                int found = 0;
+                for(int i = 0; i < target->child_count; i++) {
+                    if(target->children[i]->is_directory && 
+                       strcmp(target->children[i]->name, component) == 0) {
+                        target = target->children[i];
+                        found = 1;
+                        break;
+                    }
+                }
+                
+                if(!found) {
+                    screen_write("Directory '");
+                    screen_write(path);
+                    screen_write("' not found\n");
+                    return;
+                }
+                
+                comp_idx = 0;
+                p++;
+            } else {
+                component[comp_idx++] = *p++;
+            }
+        }
+        
+        /* Handle last component */
+        if(comp_idx > 0) {
+            component[comp_idx] = '\0';
+            int found = 0;
+            for(int i = 0; i < target->child_count; i++) {
+                if(target->children[i]->is_directory && 
+                   strcmp(target->children[i]->name, component) == 0) {
+                    target = target->children[i];
+                    found = 1;
+                    break;
+                }
+            }
+            
+            if(!found) {
+                screen_write("Directory '");
+                screen_write(path);
+                screen_write("' not found\n");
+                return;
+            }
+        }
+        
+        current_dir = target;
+        screen_write("Changed to directory: ");
+        screen_write(current_dir->name);
+        screen_write("\n");
+        return;
+    }
+    
+    /* Handle relative paths */
     for(int i = 0; i < current_dir->child_count; i++) {
         fs_node_t* child = current_dir->children[i];
         if(child->is_directory && strcmp(child->name, path) == 0) {
@@ -241,4 +462,56 @@ void fs_get_path(char* buffer, int size) {
     }
     
     buffer[pos] = '\0';
+}
+
+/* Search for a file or directory */
+fs_node_t* fs_find(const char* path) {
+    if(!root) return NULL;
+    
+    if(path[0] == '/') {
+        /* Absolute path */
+        fs_node_t* current = root;
+        char component[256];
+        int comp_idx = 0;
+        const char* p = path + 1;
+        
+        while(*p) {
+            if(*p == '/' || *(p+1) == '\0') {
+                if(*(p+1) == '\0') {
+                    component[comp_idx++] = *p;
+                }
+                component[comp_idx] = '\0';
+                
+                /* Find component */
+                int found = 0;
+                for(int i = 0; i < current->child_count; i++) {
+                    if(strcmp(current->children[i]->name, component) == 0) {
+                        current = current->children[i];
+                        found = 1;
+                        break;
+                    }
+                }
+                
+                if(!found) return NULL;
+                
+                comp_idx = 0;
+                p++;
+            } else {
+                component[comp_idx++] = *p++;
+            }
+        }
+        
+        return current;
+    } else {
+        /* Relative path - search from current_dir */
+        if(!current_dir) return NULL;
+        
+        for(int i = 0; i < current_dir->child_count; i++) {
+            if(strcmp(current_dir->children[i]->name, path) == 0) {
+                return current_dir->children[i];
+            }
+        }
+    }
+    
+    return NULL;
 }

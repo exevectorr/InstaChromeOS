@@ -21,5 +21,6 @@ void fs_change_dir(const char* path);
 void fs_create_file(const char* name);
 void fs_create_dir(const char* name);
 void fs_get_path(char* buffer, int size);
+fs_node_t* fs_find(const char* path);
 
 #endif
