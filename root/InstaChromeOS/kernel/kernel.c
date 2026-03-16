@@ -6,6 +6,7 @@
 #include "fs/fat32.h"
 #include "lib/string.h"
 #include "bios/bios.h"
+#include "power/shutdown.h"  /* Lägg till denna rad */
 
 /* External symbols from linker script */
 extern uint32_t _kernel_start;
@@ -200,6 +201,16 @@ void start_shell(void) {
             else if(strcmp(command, "clear") == 0) {
                 screen_clear();
             }
+            /* Shutdown command */
+            else if(strcmp(command, "shutdown") == 0) {
+                screen_write("Shutting down...\n");
+                shutdown_system();
+            }
+            /* Reboot command */
+            else if(strcmp(command, "reboot") == 0) {
+                screen_write("Rebooting...\n");
+                reboot_system();
+            }
             /* Run command - view file content (read-only) */
             else if(strncmp(command, "run -v ", 7) == 0) {
                 char* filename = command + 7;
@@ -332,6 +343,8 @@ void start_shell(void) {
                 screen_write("  load -s <file>   - Edit file content (F2 to save, ESC to cancel)\n");
                 screen_write("  printf * <text>  - Print text\n");
                 screen_write("  clear            - Clear screen\n");
+                screen_write("  shutdown         - Shut down the system\n");
+                screen_write("  reboot           - Reboot the system\n");
                 screen_write("  KeySifh <layout> - Switch keyboard layout\n");
                 screen_write("  help             - Show this help\n");
                 screen_write("\n");
