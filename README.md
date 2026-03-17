@@ -14,7 +14,6 @@ A lightweight, educational operating system built from scratch for x86 architect
 - [Power Management](#-power-management)
 - [Shell and User Interface](#-shell-and-user-interface)
 - [User Guide (v1.1.9)](#-user-guide-v119)
-- [Version 1.2.0 Roadmap](#-version-120-roadmap)
 
 ---
 
@@ -453,54 +452,6 @@ When `load -s` is called, the shell enters editing mode:
 5. ESC cancels without saving
 
 The editor is line-based – you can't move the cursor up to previous lines, but you can edit the current line with backspace.
-
----
-
-## 🎮 User Guide (v1.1.9)
-
-### First Boot Experience
-When you first start InstaChromeOS, you'll see:
-
-**1. BIOS Screen (2.5 seconds)**
-
-=== APM 1.2 ====================================================== SVN 9458 ====
-[                                                                              ]
-[ InstaChromeOS version 1.1.9 [auto-build date time]                           ]
-[==============================================================================]
-[ InstaChromeBIOS All rights reserved(C) 2026                                  ]
-[                                                                              ]
-[ Press right shift+F12 to toggle BIOS                                         ]
-[ Press right shift and F10 to toggle InstaChromeCHX                           ]
-[                                                                              ]
-[ All rights reserved (c) InstaChromeOS 2026                                   ]
-[==============================================================================]
-
-
-**2. Memory Information (5 seconds)**
-========================================
-MEMORY INFORMATION
-========================================
-Total Memory...........128 MB (32768 pages)
-Used Memory............6 MB (1536 pages)
-Free Memory............122 MB (125000 KB / 31232 pages)
-Memory Usage...........5%
-========================================
-
-Kernel Information:
-Kernel Start: 0x00100000
-Kernel End: 0x00123400
-Kernel Size: 144 KB
-========================================
-
-
-**3. Welcome Screen**
-
-========================================
-welcome to InstaChromeOS
-========================================
-Powerd by InstaChrome
-
-root>
 
 ---
 
